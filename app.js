@@ -9,6 +9,7 @@ let supabase = null;
 let transactions = [];
 let currentType = "CREDIT";
 let editingId = null;
+let signedIn = false;
 
 function money(value) {
   return new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(Number(value || 0));
@@ -113,6 +114,7 @@ function renderTransactions() {
 }
 function renderAll() { renderSummary(); renderMemberReport(); renderTransactions(); }
 async function loadTransactions() {
+  if (!signedIn || !supabase) return;
   $("transactionList").innerHTML='<p class="empty-state">Loading transactions…</p>';
   const {data,error}=await supabase.from("transactions")
     .select("id,type,description,amount,payment_mode,transaction_date,created_at")
@@ -268,11 +270,17 @@ async function saveBulkEntries() {
 }
 
 async function showSession(session) {
-  const signedIn=Boolean(session);
+  signedIn = Boolean(session);
   $("authPanel").classList.toggle("hidden",signedIn);
   $("cashbookPanel").classList.toggle("hidden",!signedIn);
   $("signOutBtn").classList.toggle("hidden",!signedIn);
-  if(signedIn) await loadTransactions();
+  if (!signedIn) {
+    transactions = [];
+    editingId = null;
+    renderAll();
+    return;
+  }
+  await loadTransactions();
 }
 async function init() {
   $("entryDate").value=todayLocal(); setType("CREDIT");
@@ -282,9 +290,14 @@ async function init() {
     return;
   }
   supabase=createClient(config.SUPABASE_URL,config.SUPABASE_ANON_KEY);
-  const {data:{session}}=await supabase.auth.getSession();
+  const {data:{session},error:sessionError}=await supabase.auth.getSession();
+  if (sessionError) setMessage($("authMessage"), "Your session could not be restored. Please sign in again.", "error");
   await showSession(session);
-  supabase.auth.onAuthStateChange((_event,session)=>{ setTimeout(()=>showSession(session),0); });
+  supabase.auth.onAuthStateChange((event,session)=>{
+    if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED" || event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+      setTimeout(()=>showSession(session),0);
+    }
+  });
 }
 $("creditTab").addEventListener("click",()=>setType("CREDIT"));
 $("debitTab").addEventListener("click",()=>setType("DEBIT"));
@@ -293,17 +306,14 @@ $("authForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!supabase)return;
   setMessage($("authMessage"),"Signing in…");
   const {error}=await supabase.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
-  setMessage($("authMessage"),error?error.message:"Signed in.",error?"error":"success");
+  setMessage($("authMessage"),error?"Unable to sign in. Check your email and password, or contact the owner.":"Signed in.",error?"error":"success");
 });
-$("signUpBtn").addEventListener("click",async()=>{
-  if(!supabase)return;
-  setMessage($("authMessage"),"Creating account…");
-  const {data,error}=await supabase.auth.signUp({email:$("email").value.trim(),password:$("password").value});
-  if(error)setMessage($("authMessage"),error.message,"error");
-  else if(!data.session)setMessage($("authMessage"),"Account created. Check your email to confirm, then sign in.","success");
-  else setMessage($("authMessage"),"Account created. You can start recording transactions.","success");
+$("signOutBtn").addEventListener("click",async()=>{
+  if (!supabase) return;
+  const {error}=await supabase.auth.signOut({scope:"local"});
+  if (error) setMessage($("authMessage"),"Could not sign out completely. Please close this tab and try again.","error");
+  else { signedIn=false; transactions=[]; renderAll(); await showSession(null); }
 });
-$("signOutBtn").addEventListener("click",async()=>{await supabase.auth.signOut();transactions=[];renderAll();});
 $("transactionForm").addEventListener("submit",async e=>{
   e.preventDefault(); if(!supabase)return;
   const description=$("description").value.trim(); const amount=Number($("amount").value);
