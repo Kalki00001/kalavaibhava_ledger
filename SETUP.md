@@ -40,3 +40,8 @@ Do not share the URL publicly if you want the app to stay discreet. The login is
 - The app does not expose a service-role key.
 - Supabase project/database backups and retention depend on the plan. Export your transactions periodically as an additional backup; this starter version does not yet include an export button.
 - Never share your login, email verification links, or database secrets.
+
+Production hosting: Netlify
+Source control: GitHub
+Automatic deployment: Enabled
+Database: Supabase
