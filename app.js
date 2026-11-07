@@ -139,6 +139,7 @@ function startEdit(id) {
   $("entryPanel").scrollIntoView({behavior:"smooth",block:"start"});
 }
 async function deleteTransaction(id) {
+  if (!signedIn) return;
   const t=transactions.find(x=>x.id===id); if(!t) return;
   const ok=window.confirm(`Delete this transaction?\n\n${t.type==="CREDIT"?"Money IN":"Money OUT"}: ${t.description}\nAmount: ${money(t.amount)}\n\nThis will change your balance and cannot be undone from the website.`);
   if(!ok) return;
@@ -244,7 +245,7 @@ function updateBulkTotal() {
   $("bulkTotal").textContent = money(total);
 }
 async function saveBulkEntries() {
-  if (!supabase) return;
+  if (!supabase || !signedIn) return;
   const rows = [...document.querySelectorAll("#bulkRows .bulk-row")];
   const payload = [];
   for (let i = 0; i < rows.length; i++) {
@@ -270,17 +271,42 @@ async function saveBulkEntries() {
 }
 
 async function showSession(session) {
-  signedIn = Boolean(session);
-  $("authPanel").classList.toggle("hidden",signedIn);
-  $("cashbookPanel").classList.toggle("hidden",!signedIn);
-  $("signOutBtn").classList.toggle("hidden",!signedIn);
-  if (!signedIn) {
+
+function isCashbookOwner(session) {
+  return session?.user?.app_metadata?.cashbook_owner === true;
+}
+
+async function showSession(session) {
+  const hasSession = Boolean(session);
+  const isOwner = hasSession && isCashbookOwner(session);
+
+  signedIn = isOwner;
+
+  $("authPanel").classList.toggle("hidden", isOwner);
+  $("cashbookPanel").classList.toggle("hidden", !isOwner);
+  $("signOutBtn").classList.toggle("hidden", !hasSession);
+
+  if (!isOwner) {
     transactions = [];
     editingId = null;
+    resetForm();
     renderAll();
+
+    if (hasSession) {
+      setMessage(
+        $("authMessage"),
+        "This account is not authorized to access the cashbook.",
+        "error"
+      );
+      await supabase.auth.signOut({ scope: "local" });
+    }
     return;
   }
+
+  setMessage($("authMessage"), "");
   await loadTransactions();
+}
+
 }
 async function init() {
   $("entryDate").value=todayLocal(); setType("CREDIT");
@@ -303,7 +329,7 @@ $("creditTab").addEventListener("click",()=>setType("CREDIT"));
 $("debitTab").addEventListener("click",()=>setType("DEBIT"));
 $("cancelEditBtn").addEventListener("click",resetForm);
 $("authForm").addEventListener("submit",async e=>{
-  e.preventDefault(); if(!supabase)return;
+  e.preventDefault(); if(!supabase || !signedIn)return;
   setMessage($("authMessage"),"Signing in…");
   const {error}=await supabase.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
   setMessage($("authMessage"),error?"Unable to sign in. Check your email and password, or contact the owner.":"Signed in.",error?"error":"success");
