@@ -270,8 +270,6 @@ async function saveBulkEntries() {
   await loadTransactions();
 }
 
-async function showSession(session) {
-
 function isCashbookOwner(session) {
   return session?.user?.app_metadata?.cashbook_owner === true;
 }
@@ -306,8 +304,6 @@ async function showSession(session) {
   setMessage($("authMessage"), "");
   await loadTransactions();
 }
-
-}
 async function init() {
   $("entryDate").value=todayLocal(); setType("CREDIT");
   if(!configured) {
@@ -329,10 +325,14 @@ $("creditTab").addEventListener("click",()=>setType("CREDIT"));
 $("debitTab").addEventListener("click",()=>setType("DEBIT"));
 $("cancelEditBtn").addEventListener("click",resetForm);
 $("authForm").addEventListener("submit",async e=>{
-  e.preventDefault(); if(!supabase || !signedIn)return;
+  e.preventDefault(); if(!supabase)return;
+  const button = $("signInBtn");
+  button.disabled = true;
   setMessage($("authMessage"),"Signing in…");
   const {error}=await supabase.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});
-  setMessage($("authMessage"),error?"Unable to sign in. Check your email and password, or contact the owner.":"Signed in.",error?"error":"success");
+  button.disabled = false;
+  if (error) setMessage($("authMessage"),error.message,"error");
+  else setMessage($("authMessage"),"Signed in. Checking account authorization…","success");
 });
 $("signOutBtn").addEventListener("click",async()=>{
   if (!supabase) return;

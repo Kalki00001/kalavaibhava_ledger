@@ -1,5 +1,6 @@
 -- Run this whole script in Supabase Dashboard -> SQL Editor.
--- Each signed-in user can read/write ONLY their own transactions.
+-- The existing owner must have app_metadata.cashbook_owner = true.
+-- Do not use user_metadata for authorization: users can edit it themselves.
 
 create table if not exists public.transactions (
   id uuid primary key default gen_random_uuid(),
@@ -18,26 +19,26 @@ drop policy if exists "Users can read own transactions" on public.transactions;
 create policy "Users can read own transactions"
 on public.transactions for select
 to authenticated
-using (auth.uid() = user_id);
+using ((select auth.uid()) = user_id and (select coalesce((auth.jwt() -> 'app_metadata' ->> 'cashbook_owner')::boolean, false)));
 
 drop policy if exists "Users can insert own transactions" on public.transactions;
 create policy "Users can insert own transactions"
 on public.transactions for insert
 to authenticated
-with check (auth.uid() = user_id);
+with check ((select auth.uid()) = user_id and (select coalesce((auth.jwt() -> 'app_metadata' ->> 'cashbook_owner')::boolean, false)));
 
 drop policy if exists "Users can update own transactions" on public.transactions;
 create policy "Users can update own transactions"
 on public.transactions for update
 to authenticated
-using (auth.uid() = user_id)
-with check (auth.uid() = user_id);
+using ((select auth.uid()) = user_id and (select coalesce((auth.jwt() -> 'app_metadata' ->> 'cashbook_owner')::boolean, false)))
+with check ((select auth.uid()) = user_id and (select coalesce((auth.jwt() -> 'app_metadata' ->> 'cashbook_owner')::boolean, false)));
 
 drop policy if exists "Users can delete own transactions" on public.transactions;
 create policy "Users can delete own transactions"
 on public.transactions for delete
 to authenticated
-using (auth.uid() = user_id);
+using ((select auth.uid()) = user_id and (select coalesce((auth.jwt() -> 'app_metadata' ->> 'cashbook_owner')::boolean, false)));
 
 create index if not exists transactions_user_date_idx
 on public.transactions (user_id, transaction_date desc, created_at desc);
