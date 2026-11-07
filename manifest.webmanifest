@@ -1,0 +1,9 @@
+{
+  "name": "Kannada Kalavaibhava Cashbook",
+  "short_name": "KK Cashbook",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#17365d",
+  "description": "Private event cashbook"
+}
