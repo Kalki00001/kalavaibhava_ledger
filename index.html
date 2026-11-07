@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17365d">
+  <meta name="description" content="Private Kannada Kalavaibhava event cashbook">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <title>Kannada Kalavaibhava Cashbook</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand-mark">KK</div>
+      <div class="brand-copy">
+        <p class="eyebrow">EVENT FINANCE</p>
+        <h1>Kannada Kalavaibhava</h1>
+      </div>
+      <button id="signOutBtn" class="quiet-button hidden" type="button">Sign out</button>
+    </header>
+
+    <section id="setupNotice" class="notice hidden">
+      <strong>Database connection needs setup</strong>
+      <p>Check that your existing <code>config.js</code> contains the correct Supabase Project URL and Publishable key. Do not use a service-role or secret key in the browser.</p>
+    </section>
+
+    <section id="authPanel" class="panel auth-panel">
+      <div class="auth-icon">KK</div>
+      <h2>Your private cashbook</h2>
+      <p class="muted">Sign in to manage event contributions and expenses.</p>
+      <form id="authForm">
+        <label>Email address<input id="email" type="email" autocomplete="username" required placeholder="you@example.com"></label>
+        <label>Password<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="Your password"></label>
+        <div class="button-row">
+          <button class="primary-button" type="submit" id="signInBtn">Sign in</button>
+          <button class="secondary-button" type="button" id="signUpBtn">Create account</button>
+        </div>
+      </form>
+      <p id="authMessage" class="message" role="status"></p>
+    </section>
+
+    <section id="cashbookPanel" class="hidden">
+      <section class="hero-summary">
+        <div class="hero-label">AVAILABLE EVENT BALANCE</div>
+        <div id="balanceValue" class="hero-balance">₹0.00</div>
+        <div class="hero-caption">Total received minus total spent</div>
+      </section>
+
+      <section class="summary-grid">
+        <article class="summary-card received-card">
+          <span class="summary-label">Money received</span>
+          <strong id="creditValue">₹0.00</strong>
+        </article>
+        <article class="summary-card spent-card">
+          <span class="summary-label">Money spent</span>
+          <strong id="debitValue">₹0.00</strong>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">Cash balance</span>
+          <strong id="cashBalanceValue">₹0.00</strong>
+          <small id="cashDetail">Cash IN ₹0 · OUT ₹0</small>
+        </article>
+        <article class="summary-card">
+          <span class="summary-label">UPI balance</span>
+          <strong id="upiBalanceValue">₹0.00</strong>
+          <small id="upiDetail">UPI IN ₹0 · OUT ₹0</small>
+        </article>
+      </section>
+
+      <section class="panel entry-panel" id="entryPanel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">QUICK ENTRY</p>
+            <h2 id="formHeading">Add transaction</h2>
+          </div>
+          <span id="editBadge" class="edit-badge hidden">EDITING</span>
+        </div>
+        <div class="type-switch" role="group" aria-label="Transaction type">
+          <button type="button" id="creditTab" class="type-button active-credit" aria-pressed="true">＋ Money IN</button>
+          <button type="button" id="debitTab" class="type-button" aria-pressed="false">− Money OUT</button>
+        </div>
+        <form id="transactionForm">
+          <input type="hidden" id="transactionType" value="CREDIT">
+          <label id="descriptionLabel" for="description">Member name</label>
+          <input id="description" maxlength="100" required placeholder="Who gave the money?">
+          <div class="form-row">
+            <label for="amount">Amount (₹)
+              <input id="amount" type="number" min="0.01" max="10000000" step="0.01" required inputmode="decimal" placeholder="e.g. 300">
+            </label>
+            <label for="paymentMode">Payment mode
+              <select id="paymentMode">
+                <option value="UPI">UPI</option>
+                <option value="Cash">Cash</option>
+              </select>
+            </label>
+          </div>
+          <label for="entryDate">Date
+            <input id="entryDate" type="date" required>
+          </label>
+          <div class="button-row form-actions">
+            <button class="primary-button" id="saveBtn" type="submit">Add money received</button>
+            <button class="secondary-button hidden" id="cancelEditBtn" type="button">Cancel edit</button>
+          </div>
+          <p id="entryMessage" class="message" role="status"></p>
+        </form>
+      </section>
+
+      <section class="panel bulk-panel" id="bulkPanel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">FASTER COLLECTION ENTRY</p>
+            <h2>Multiple entries at once</h2>
+          </div>
+          <span class="count-pill">Bulk entry</span>
+        </div>
+        <p class="muted small-copy">Add several members or expenses, then save them together.</p>
+        <div class="type-switch" role="group" aria-label="Bulk transaction type">
+          <button type="button" id="bulkCreditTab" class="type-button active-credit" aria-pressed="true">＋ Money IN</button>
+          <button type="button" id="bulkDebitTab" class="type-button" aria-pressed="false">− Money OUT</button>
+        </div>
+        <div class="form-row">
+          <label for="bulkDate">Date<input id="bulkDate" type="date" required></label>
+          <label for="bulkDefaultMode">Default mode<select id="bulkDefaultMode"><option value="UPI">UPI</option><option value="Cash">Cash</option></select></label>
+        </div>
+        <div id="bulkRows" class="bulk-rows"></div>
+        <div class="bulk-controls">
+          <button id="addBulkRowBtn" class="secondary-button" type="button">＋ Add another row</button>
+          <div class="bulk-total">Batch total <strong id="bulkTotal">₹0.00</strong></div>
+        </div>
+        <button id="saveBulkBtn" class="primary-button full-button" type="button">Save all entries</button>
+        <p id="bulkMessage" class="message" role="status"></p>
+      </section>
+
+      <section class="panel report-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">CONTRIBUTIONS</p>
+            <h2>Member-wise report</h2>
+          </div>
+          <span id="memberCount" class="count-pill">0 members</span>
+        </div>
+        <p class="muted small-copy">Totals are grouped by the name entered for Money IN transactions.</p>
+        <div id="memberReport" class="member-report">
+          <p class="empty-state">No contributions recorded yet.</p>
+        </div>
+      </section>
+
+      <section class="panel history-panel">
+        <div class="history-heading">
+          <div>
+            <p class="eyebrow">YOUR RECORDS</p>
+            <h2>Transaction history</h2>
+          </div>
+          <button id="refreshBtn" class="quiet-button" type="button">Refresh</button>
+        </div>
+        <div class="export-row">
+          <button id="exportExcelBtn" class="secondary-button" type="button">↓ Export Excel</button>
+          <button id="backupJsonBtn" class="secondary-button" type="button">↓ JSON backup</button>
+        </div>
+        <div class="filter-row">
+          <input id="searchInput" type="search" placeholder="Search name or purpose…" aria-label="Search transactions">
+          <select id="filterType" aria-label="Filter transaction type">
+            <option value="ALL">All entries</option>
+            <option value="CREDIT">Money IN</option>
+            <option value="DEBIT">Money OUT</option>
+          </select>
+        </div>
+        <div id="transactionList" class="transaction-list">
+          <p class="empty-state">Sign in to see your transactions.</p>
+        </div>
+      </section>
+      <p class="footer-note">This cashbook records payments; it does not move money through UPI or banks. Verify entries against actual receipts and cash.</p>
+    </section>
+  </main>
+  <script src="./config.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
